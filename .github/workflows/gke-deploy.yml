@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write     # Required for Workload Identity Federation
+  id-token: write     # Required for Workload Identity Federation (OIDC)
   contents: read      # Required to checkout repository
 
 env:
   PROJECT_ID: myproject-non-prod
   GAR_LOCATION: us-central1
   GKE_CLUSTER: gke-cluster-dev
-  GKE_LOCATION: us-central1
+  GKE_LOCATION: us-central1        # REGION, not zone
   REPOSITORY: gke-apps
 
 jobs:
@@ -33,12 +33,17 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      
+     
       - name: Enable GKE Application Default Credentials
         run: |
           gcloud config set container/use_application_default_credentials true
 
-      # Generate dynamic image paths
+      
+      - name: Disable GKE Auth Plugin Requirement
+        run: |
+          echo "USE_GKE_GCLOUD_AUTH_PLUGIN=False" >> $GITHUB_ENV
+
+      # Dynamic image paths
       - name: Set image variables
         run: |
           echo "FRONTEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/frontend" >> $GITHUB_ENV
