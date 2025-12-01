@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/gke-apps/frontend:latest
+          image: us-central1-docker.pkg.dev/myproject-non-prod/gke-apps/frontend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80
