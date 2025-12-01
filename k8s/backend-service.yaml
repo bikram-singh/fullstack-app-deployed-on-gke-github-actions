@@ -8,6 +8,6 @@ spec:
     app: backend-dev
   ports:
     - name: http
-      port: 8000
-      targetPort: 8000
-  type: LoadBalancer
+      port: 5000          # Service port
+      targetPort: 5000    # Container port
+  type: ClusterIP
