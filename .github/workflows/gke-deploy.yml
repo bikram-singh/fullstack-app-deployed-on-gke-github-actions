@@ -11,7 +11,7 @@ env:
   PROJECT_ID: myproject-non-prod
   GAR_LOCATION: us-central1
   GKE_CLUSTER: gke-cluster-dev
-  GKE_LOCATION: us-central1        # REGION, not zone
+  GKE_LOCATION: us-central1        
   REPOSITORY: gke-apps
 
 jobs:
