@@ -5,21 +5,15 @@ on:
 
 # Global environment variables
 env:
-  PROJECT_ID: myproject-non-prod                
-  GAR_LOCATION: us-central1                     
+  PROJECT_ID: myproject-non-prod
+  GAR_LOCATION: us-central1
   GKE_CLUSTER: gke-cluster-dev
   GKE_LOCATION: us-central1-a
   REPOSITORY: gke-apps
-  
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
-    
-    env:
-      FRONTEND_IMAGE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/frontend
-      BACKEND_IMAGE:  ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend
 
     steps:
       - name: Checkout source code
@@ -36,9 +30,15 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
+      # ⭐ FIX: Set dynamic values correctly
+      - name: Set image variables
+        run: |
+          echo "FRONTEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/frontend" >> $GITHUB_ENV
+          echo "BACKEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/backend" >> $GITHUB_ENV
+
       - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker $GAR_LOCATION-docker.pkg.dev --quiet
+          gcloud auth configure-docker ${GAR_LOCATION}-docker.pkg.dev --quiet
 
       - name: Build & Push Backend Image
         working-directory: backend
