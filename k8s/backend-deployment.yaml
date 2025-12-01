@@ -13,9 +13,10 @@ spec:
       labels:
         app: backend-dev
     spec:
+      serviceAccountName: default  # WIF-enabled SA identity
       containers:
         - name: backend
-          image: us-central1-docker.pkg.dev/YOUR_GCP_PROJECT_ID/gke-apps/backend:latest
+          image: us-central1-docker.pkg.dev/myproject-non-prod/gke-apps/backend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -25,25 +26,35 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: DB_USER
+
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: DB_PASSWORD
+
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: DB_NAME
+
+            # Cloud SQL Proxy always runs on localhost
             - name: DB_HOST
               value: "127.0.0.1"
+
+            # Proxy exposes PostgreSQL on 5432
             - name: DB_PORT
               value: "5432"
 
+        # --------------------------
+        # Cloud SQL Auth Proxy Sidecar
+        # --------------------------
         - name: cloud-sql-proxy
-          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.10.0
           args:
-            - "--private-ip"
-            - "--structured-logs"
             - "--port=5432"
+            - "--auto-iam-authn"
             - "myproject-non-prod:us-central1:postgresql-dev"
+          securityContext:
+            runAsNonRoot: true
