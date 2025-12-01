@@ -3,6 +3,10 @@ name: Deploy to GKE
 on:
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   PROJECT_ID: myproject-non-prod
   GAR_LOCATION: us-central1
