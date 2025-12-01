@@ -58,7 +58,8 @@ jobs:
 
       - name: Get GKE Credentials
         run: |
-          gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_LOCATION --project $PROJECT_ID
+          gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_LOCATION --project $PROJECT_ID
+
 
       - name: Apply Kubernetes manifests
         run: |
