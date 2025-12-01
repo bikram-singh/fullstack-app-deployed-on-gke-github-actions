@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write     # Required for Workload Identity Federation (OIDC)
+  id-token: write     # Required for Workload Identity Federation
   contents: read      # Required to checkout repository
 
 env:
@@ -22,43 +22,66 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      # ---------------------------
+      # 1. Authenticate using WIF
+      # ---------------------------
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: "projects/166457981312/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions"
           service_account: "github-actions-deploy@myproject-non-prod.iam.gserviceaccount.com"
 
+      # ---------------------------
+      # 2. Install base gcloud
+      # ---------------------------
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-     
-      - name: Enable GKE Application Default Credentials
+      # ----------------------------------------------------
+      # 3. Install full Google Cloud SDK (supports components)
+      # ----------------------------------------------------
+      - name: Install full Google Cloud SDK with components
         run: |
-          gcloud config set container/use_application_default_credentials true
+          curl -sSL https://sdk.cloud.google.com > install.sh
+          bash install.sh --disable-prompts
+          echo "${HOME}/google-cloud-sdk/bin" >> $GITHUB_PATH
 
-      
-      - name: Disable GKE Auth Plugin Requirement
+      # ----------------------------------------------------
+      # 4. Install GKE Auth Plugin (required for kubectl)
+      # ----------------------------------------------------
+      - name: Install GKE Auth Plugin
         run: |
-          echo "USE_GKE_GCLOUD_AUTH_PLUGIN=False" >> $GITHUB_ENV
+          gcloud components install gke-gcloud-auth-plugin --quiet
 
-      # Dynamic image paths
+      # -------------------------------------
+      # 5. Generate Docker image variables
+      # -------------------------------------
       - name: Set image variables
         run: |
           echo "FRONTEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/frontend" >> $GITHUB_ENV
           echo "BACKEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/backend" >> $GITHUB_ENV
 
+      # ----------------------------------------------------
+      # 6. Configure Docker for Artifact Registry
+      # ----------------------------------------------------
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker ${GAR_LOCATION}-docker.pkg.dev --quiet
 
+      # -------------------------
+      # 7. Build & Push Backend
+      # -------------------------
       - name: Build & Push Backend Image
         working-directory: backend
         run: |
           docker build -t $BACKEND_IMAGE:latest .
           docker push $BACKEND_IMAGE:latest
 
+      # -------------------------
+      # 8. Build & Push Frontend
+      # -------------------------
       - name: Build & Push Frontend Image
         working-directory: frontend
         env:
@@ -67,10 +90,16 @@ jobs:
           docker build -t $FRONTEND_IMAGE:latest .
           docker push $FRONTEND_IMAGE:latest
 
+      # ----------------------------------------------------
+      # 9. Authenticate kubectl with GKE (uses plugin)
+      # ----------------------------------------------------
       - name: Get GKE Credentials
         run: |
           gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_LOCATION --project $PROJECT_ID
 
+      # ----------------------------------------------------
+      # 10. Apply Kubernetes Manifests
+      # ----------------------------------------------------
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f k8s/namespace-dev.yaml
