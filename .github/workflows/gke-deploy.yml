@@ -3,7 +3,6 @@ name: Deploy to GKE
 on:
   workflow_dispatch:
 
-# Global environment variables
 env:
   PROJECT_ID: myproject-non-prod
   GAR_LOCATION: us-central1
@@ -22,15 +21,14 @@ jobs:
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          workload_identity_provider: "projects/166457981312/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions"
+          service_account: "github-actions-deploy@myproject-non-prod.iam.gserviceaccount.com"
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      # ⭐ FIX: Set dynamic values correctly
       - name: Set image variables
         run: |
           echo "FRONTEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/frontend" >> $GITHUB_ENV
