@@ -3,3 +3,11 @@ kind: Service
 metadata:
   name: backend-service
   namespace: dev
+spec:
+  selector:
+    app: backend-dev
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+  type: LoadBalancer
