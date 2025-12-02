@@ -15,11 +15,15 @@ spec:
     spec:
       serviceAccountName: default  # WIF-enabled SA identity
       containers:
+
+        # --------------------------
+        # Backend Application
+        # --------------------------
         - name: backend
           image: us-central1-docker.pkg.dev/myproject-non-prod/gke-apps/backend:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8000
+            - containerPort: 5000       # Updated from 8000 → 5000
           env:
             - name: DB_USER
               valueFrom:
@@ -39,13 +43,20 @@ spec:
                   name: postgres-secret
                   key: DB_NAME
 
-            # Cloud SQL Proxy always runs on localhost
             - name: DB_HOST
-              value: "127.0.0.1"
+              value: "127.0.0.1"        # Cloud SQL proxy local address
 
-            # Proxy exposes PostgreSQL on 5432
             - name: DB_PORT
-              value: "5432"
+              value: "5432"             # Cloud SQL proxy port
+
+          # Resource FIX (prevents pods from going Pending)
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "300m"
+              memory: "512Mi"
 
         # --------------------------
         # Cloud SQL Auth Proxy Sidecar
@@ -58,3 +69,12 @@ spec:
             - "myproject-non-prod:us-central1:postgresql-dev"
           securityContext:
             runAsNonRoot: true
+
+          # Resource FIX for sidecar
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
