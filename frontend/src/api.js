@@ -15,4 +15,3 @@ export async function fetchItems() {
   const res = await fetch(`${API_BASE_URL}/items`);
   return res.json();
 }
-
