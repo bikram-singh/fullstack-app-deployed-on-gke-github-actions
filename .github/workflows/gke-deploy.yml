@@ -109,25 +109,26 @@ jobs:
           kubectl apply -f k8s/backend-service.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/frontend-service.yaml
-          kubectl apply -f k8s/internal-lb-service.yaml
-          kubectl apply -f k8s/internal-ingress.yaml
+
+          # APPLY EXTERNAL INGRESS
+          kubectl apply -f k8s/external-ingress.yaml
 
       # ---------------------------------------------
-      # 12. Wait for Internal Ingress IP Assignment
+      # 12. Wait for External Ingress IP Assignment
       # ---------------------------------------------
-      - name: Wait for Internal Ingress to get IP
+      - name: Wait for External Ingress to get IP
         run: |
-          echo "Waiting for internal Ingress IP..."
+          echo "Waiting for external Ingress IP..."
           for i in {1..40}; do
-            IP=$(kubectl get ingress internal-ingress -n dev -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            IP=$(kubectl get ingress external-ingress -n dev -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [[ "$IP" != "" ]]; then
-              echo "Internal Ingress IP assigned: $IP"
+              echo "External Ingress IP assigned: $IP"
               exit 0
             fi
             echo "Still waiting... ($i/40)"
             sleep 10
           done
-          echo "ERROR: Ingress did not receive an internal IP"
+          echo "ERROR: Ingress did not receive an external IP"
           exit 1
 
       # ---------------------------------------------------
@@ -149,7 +150,6 @@ jobs:
           echo "=== Pods Information ==="
           kubectl get pods -n dev -o wide
 
-
       # ---------------------------------------------------
       # 14. Show Deployment Logs for Troubleshooting
       # ---------------------------------------------------
@@ -159,7 +159,7 @@ jobs:
           echo "=== Recent Deployment Events ==="
           kubectl get events --sort-by=.metadata.creationTimestamp -n dev | tail -20
 
-          echo "=== Pod Logs ==="
+          echo "=== Frontend Logs ==="
           kubectl logs -l app=frontend-dev -n dev --tail=100 || echo "No frontend logs"
 
           echo "=== Backend Logs ==="
