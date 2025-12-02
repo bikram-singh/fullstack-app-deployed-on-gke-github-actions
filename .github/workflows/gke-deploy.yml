@@ -88,8 +88,6 @@ jobs:
       # -------------------------------
       - name: Build & Push Frontend Image
         working-directory: frontend
-        env:
-          REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
         run: |
           docker build -t $FRONTEND_IMAGE:latest .
           docker push $FRONTEND_IMAGE:latest
@@ -111,7 +109,14 @@ jobs:
           kubectl apply -f k8s/backend-service.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/frontend-service.yaml
+
+          # IMPORTANT: Apply the INTERNAL LoadBalancer first
+          kubectl apply -f k8s/internal-lb-service.yaml
+
+          # Then apply the INTERNAL Ingress
           kubectl apply -f k8s/internal-ingress.yaml
+
+          
 
       # ---------------------------------------------
       # 12. Wait for Internal Ingress IP Assignment
