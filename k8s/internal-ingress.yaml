@@ -4,7 +4,8 @@ metadata:
   name: internal-ingress
   namespace: dev
   annotations:
-    kubernetes.io/ingress.class: "gce-internal"  # internal load balancer
+    kubernetes.io/ingress.class: "gce"
+    networking.gke.io/load-balancer-type: "Internal"
     kubernetes.io/ingress.allow-http: "true"
 spec:
   rules:
@@ -17,6 +18,7 @@ spec:
             name: frontend-service
             port:
               number: 80
+
       - path: /api
         pathType: Prefix
         backend:
