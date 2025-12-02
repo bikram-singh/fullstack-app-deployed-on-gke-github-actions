@@ -4,7 +4,7 @@ metadata:
   name: internal-ingress
   namespace: dev
   annotations:
-    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.class: "gce-internal"
     cloud.google.com/load-balancer-type: "Internal"   
     kubernetes.io/ingress.allow-http: "true"
 spec:
