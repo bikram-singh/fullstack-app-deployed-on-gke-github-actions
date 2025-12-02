@@ -11,7 +11,7 @@ env:
   PROJECT_ID: myproject-non-prod
   GAR_LOCATION: us-central1
   GKE_CLUSTER: gke-cluster-dev
-  GKE_LOCATION: us-central1        
+  GKE_LOCATION: us-central1
   REPOSITORY: gke-apps
 
 jobs:
@@ -19,11 +19,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # ---------------------------
+      # 1. Checkout Source Code
+      # ---------------------------
       - name: Checkout source code
         uses: actions/checkout@v4
 
       # ---------------------------
-      # 1. Authenticate using WIF
+      # 2. Authenticate using WIF
       # ---------------------------
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
@@ -32,56 +36,56 @@ jobs:
           service_account: "github-actions-deploy@myproject-non-prod.iam.gserviceaccount.com"
 
       # ---------------------------
-      # 2. Install base gcloud
+      # 3. Install Base gcloud SDK
       # ---------------------------
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      # ----------------------------------------------------
-      # 3. Install full Google Cloud SDK (supports components)
-      # ----------------------------------------------------
-      - name: Install full Google Cloud SDK with components
+      # --------------------------------------------------------
+      # 4. Install Full Cloud SDK (required for extra components)
+      # --------------------------------------------------------
+      - name: Install full Google Cloud SDK
         run: |
           curl -sSL https://sdk.cloud.google.com > install.sh
           bash install.sh --disable-prompts
           echo "${HOME}/google-cloud-sdk/bin" >> $GITHUB_PATH
 
-      # ----------------------------------------------------
-      # 4. Install GKE Auth Plugin (required for kubectl)
-      # ----------------------------------------------------
+      # ----------------------------------------------
+      # 5. Install GKE Authentication Plugin for kubectl
+      # ----------------------------------------------
       - name: Install GKE Auth Plugin
         run: |
           gcloud components install gke-gcloud-auth-plugin --quiet
 
-      # -------------------------------------
-      # 5. Generate Docker image variables
-      # -------------------------------------
+      # -------------------------------------------
+      # 6. Generate Docker Image Name Environment Vars
+      # -------------------------------------------
       - name: Set image variables
         run: |
           echo "FRONTEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/frontend" >> $GITHUB_ENV
           echo "BACKEND_IMAGE=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/backend" >> $GITHUB_ENV
 
-      # ----------------------------------------------------
-      # 6. Configure Docker for Artifact Registry
-      # ----------------------------------------------------
+      # -------------------------------------------
+      # 7. Configure Docker for Artifact Registry
+      # -------------------------------------------
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker ${GAR_LOCATION}-docker.pkg.dev --quiet
 
-      # -------------------------
-      # 7. Build & Push Backend
-      # -------------------------
+      # -------------------------------
+      # 8. Build + Push Backend Image
+      # -------------------------------
       - name: Build & Push Backend Image
         working-directory: backend
         run: |
           docker build -t $BACKEND_IMAGE:latest .
           docker push $BACKEND_IMAGE:latest
 
-      # -------------------------
-      # 8. Build & Push Frontend
-      # -------------------------
+      # -------------------------------
+      # 9. Build + Push Frontend Image
+      # -------------------------------
       - name: Build & Push Frontend Image
         working-directory: frontend
         env:
@@ -90,20 +94,39 @@ jobs:
           docker build -t $FRONTEND_IMAGE:latest .
           docker push $FRONTEND_IMAGE:latest
 
-      # ----------------------------------------------------
-      # 9. Authenticate kubectl with GKE (uses plugin)
-      # ----------------------------------------------------
+      # ---------------------------------------------
+      # 10. Authenticate kubectl with GKE (using plugin)
+      # ---------------------------------------------
       - name: Get GKE Credentials
         run: |
           gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_LOCATION --project $PROJECT_ID
 
-      # ----------------------------------------------------
-      # 10. Apply Kubernetes Manifests
-      # ----------------------------------------------------
-      - name: Apply Kubernetes manifests
+      # ---------------------------------------------
+      # 11. Apply All Kubernetes Manifests (Deploy App)
+      # ---------------------------------------------
+      - name: Apply Kubernetes manifests (Deploy)
         run: |
           kubectl apply -f k8s/namespace-dev.yaml
           kubectl apply -f k8s/backend-deployment.yaml
           kubectl apply -f k8s/backend-service.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/frontend-service.yaml
+          kubectl apply -f k8s/internal-ingress.yaml
+
+      # ---------------------------------------------
+      # 12. Wait for Internal Ingress IP Assignment
+      # ---------------------------------------------
+      - name: Wait for Internal Ingress to get IP
+        run: |
+          echo "Waiting for internal Ingress IP..."
+          for i in {1..40}; do
+            IP=$(kubectl get ingress internal-ingress -n dev -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ "$IP" != "" ]]; then
+              echo "Internal Ingress IP assigned: $IP"
+              exit 0
+            fi
+            echo "Still waiting... ($i/40)"
+            sleep 10
+          done
+          echo "ERROR: Ingress did not receive an internal IP"
+          exit 1
