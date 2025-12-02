@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write     # Required for Workload Identity Federation
-  contents: read      # Required to checkout repository
+  id-token: write
+  contents: read
 
 env:
   PROJECT_ID: myproject-non-prod
@@ -93,14 +93,14 @@ jobs:
           docker push $FRONTEND_IMAGE:latest
 
       # ---------------------------------------------
-      # 10. Authenticate kubectl with GKE (using plugin)
+      # 10. Authenticate kubectl with GKE
       # ---------------------------------------------
       - name: Get GKE Credentials
         run: |
           gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_LOCATION --project $PROJECT_ID
 
       # ---------------------------------------------
-      # 11. Apply All Kubernetes Manifests (Deploy App)
+      # 11. Apply Kubernetes Manifests
       # ---------------------------------------------
       - name: Apply Kubernetes manifests (Deploy)
         run: |
@@ -109,14 +109,8 @@ jobs:
           kubectl apply -f k8s/backend-service.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/frontend-service.yaml
-
-          # IMPORTANT: Apply the INTERNAL LoadBalancer first
           kubectl apply -f k8s/internal-lb-service.yaml
-
-          # Then apply the INTERNAL Ingress
           kubectl apply -f k8s/internal-ingress.yaml
-
-          
 
       # ---------------------------------------------
       # 12. Wait for Internal Ingress IP Assignment
@@ -135,3 +129,41 @@ jobs:
           done
           echo "ERROR: Ingress did not receive an internal IP"
           exit 1
+
+      # ---------------------------------------------------
+      # 13. Get Service URLs & Cluster Information (VALIDATION)
+      # ---------------------------------------------------
+      - name: Get Service URLs and Information
+        run: |
+          echo "=== GKE Deployment Summary ==="
+          echo "Project: $PROJECT_ID"
+          echo "Cluster: $GKE_CLUSTER"
+          echo "Namespace: dev"
+
+          echo "=== Service Information ==="
+          kubectl get svc -n dev -o wide
+
+          echo "=== Ingress Information ==="
+          kubectl get ingress -n dev -o wide || echo "Ingress not ready yet"
+
+          echo "=== Pods Information ==="
+          kubectl get pods -n dev -o wide
+
+
+      # ---------------------------------------------------
+      # 14. Show Deployment Logs for Troubleshooting
+      # ---------------------------------------------------
+      - name: Show deployment logs for troubleshooting
+        if: failure()
+        run: |
+          echo "=== Recent Deployment Events ==="
+          kubectl get events --sort-by=.metadata.creationTimestamp -n dev | tail -20
+
+          echo "=== Pod Logs ==="
+          kubectl logs -l app=frontend-dev -n dev --tail=100 || echo "No frontend logs"
+
+          echo "=== Backend Logs ==="
+          kubectl logs -l app=backend-dev -n dev --tail=100 || echo "No backend logs"
+
+          echo "=== Pod Describe ==="
+          kubectl describe pods -n dev || echo "Describe failed"
