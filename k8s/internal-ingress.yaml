@@ -7,7 +7,7 @@ metadata:
     kubernetes.io/ingress.class: "gce"
     cloud.google.com/load-balancer-type: "Internal"
 spec:
-  backend:
+  defaultBackend:
     service:
       name: frontend-service
       port:
